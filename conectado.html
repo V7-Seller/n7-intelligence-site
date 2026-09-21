@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Conexão com o Bling — N7 Intelligence</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="brand" href="./"><span class="logo">N7</span> N7 Intelligence</a></div></header>
+<main class="wrap center">
+  <h1 id="titulo">Conexão com o Bling</h1>
+  <p id="msg" class="lead" style="color:var(--muted)"></p>
+  <p><a class="btn ghost" style="margin-left:0" href="manual.html">Abrir o manual</a></p>
+</main>
+<script>
+  // Resultado do fluxo de autorização. Os códigos são fixos e não carregam dados pessoais.
+  var p = new URLSearchParams(location.search), s = p.get('s'), c = p.get('c');
+  var erros = {
+    sessao_invalida: 'A sessão de autorização é inválida, expirou ou já foi usada. Abra o link de autorização novamente.',
+    recusada: 'O Bling recusou a autorização. O código vale por cerca de 1 minuto: abra o link de novo e clique em Autorizar logo em seguida.',
+    negada: 'A autorização foi negada na tela do Bling. Repita o processo e clique em Autorizar.',
+    incompleta: 'Não recebemos as informações do Bling. Abra o link de autorização novamente.',
+    conta: 'Esta conta não está cadastrada para autorização. Fale com quem administra o N7 Intelligence.',
+    salvar: 'A conta foi autorizada, mas houve um erro ao concluir. Tente novamente.',
+    interno: 'Ocorreu um erro inesperado. Tente novamente em alguns instantes.'
+  };
+  var t = document.getElementById('titulo'), m = document.getElementById('msg');
+  if (s === 'ok') { t.textContent = '✅ Bling conectado'; m.textContent = 'A conta foi conectada ao N7 Intelligence com sucesso. Você já pode fechar esta janela.'; }
+  else if (s === 'erro') { t.textContent = 'Não foi possível conectar'; m.textContent = erros[c] || erros.interno; }
+  else { m.textContent = 'Esta página mostra o resultado da autorização com o Bling.'; }
+</script>
+</body>
+</html>
