@@ -26,10 +26,14 @@
     salvar: 'A conta foi autorizada, mas houve um erro ao concluir. Tente novamente.',
     interno: 'Ocorreu um erro inesperado. Tente novamente em alguns instantes.'
   };
+  var shopee = p.get('p') === 'shopee';
+  var nome = shopee ? 'Shopee' : 'Bling';
+  if (shopee) { erros.recusada = 'A Shopee recusou a autorização. Abra o link de conexão de novo e autorize sem demora.'; erros.negada = 'A autorização foi negada na tela da Shopee. Repita o processo e clique em Confirmar.'; erros.incompleta = 'Não recebemos as informações da Shopee. Abra o link de conexão novamente.'; erros.loja_ja_vinculada = 'Esta loja já está vinculada a outra conta cadastrada.'; document.title = 'Conexão com a Shopee — N7 Intelligence'; }
   var t = document.getElementById('titulo'), m = document.getElementById('msg');
-  if (s === 'ok') { t.textContent = '✅ Bling conectado'; m.textContent = 'A conta foi conectada ao N7 Intelligence com sucesso. Você já pode fechar esta janela.'; }
+  t.textContent = 'Conexão com ' + (shopee ? 'a Shopee' : 'o Bling');
+  if (s === 'ok') { t.textContent = '✅ ' + nome + (shopee ? ' conectada' : ' conectado'); m.textContent = 'A conta foi conectada ao N7 Intelligence com sucesso. Você já pode fechar esta janela.'; }
   else if (s === 'erro') { t.textContent = 'Não foi possível conectar'; m.textContent = erros[c] || erros.interno; }
-  else { m.textContent = 'Esta página mostra o resultado da autorização com o Bling.'; }
+  else { m.textContent = 'Esta página mostra o resultado da autorização com ' + (shopee ? 'a Shopee' : 'o Bling') + '.'; }
 </script>
 </body>
 </html>
