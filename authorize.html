@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Autorizar acesso — N7 Intelligence</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .box{max-width:460px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px}
+  label{display:block;font-size:.9rem;color:var(--muted);margin:14px 0 6px}
+  input{width:100%;padding:11px 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:1rem}
+  button{cursor:pointer;border:0;font:inherit;font-weight:700;padding:11px 20px;border-radius:9px;margin-top:18px}
+  .ok{background:var(--accent);color:#06131f}.no{background:transparent;color:var(--muted);border:1px solid var(--line);margin-left:8px}
+  .kv{margin:8px 0;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--panel);word-break:break-all}
+  .kv b{display:block;font-size:.8rem;color:var(--muted);font-weight:600}
+  .warn{color:#f59e0b}.err{color:#f87171}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="brand" href="./"><span class="logo">N7</span> N7 Intelligence</a></div></header>
+<main class="wrap" style="padding-top:36px;padding-bottom:48px">
+  <div class="box">
+    <h1 style="font-size:1.4rem;margin:0 0 6px">Autorizar acesso</h1>
+    <p id="status" style="color:var(--muted);margin:0">Carregando…</p>
+
+    <form id="login" hidden autocomplete="on">
+      <label for="email">E-mail de acesso</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label for="senha">Senha</label>
+      <input id="senha" type="password" autocomplete="current-password" required>
+      <button class="ok" type="submit">Entrar</button>
+    </form>
+
+    <div id="consent" hidden>
+      <p>O aplicativo abaixo quer acessar o <b>N7 Intelligence</b> (somente análise: vendas, estoque, Ads, Bling e Mercado Livre — nada é alterado no Mercado Livre nem no Bling).</p>
+      <div class="kv"><b>Aplicativo</b><span id="cliente"></span></div>
+      <div class="kv"><b>Volta para</b><span id="destino"></span></div>
+      <p id="aviso" class="warn" hidden></p>
+      <button class="ok" id="aprovar" type="button">Permitir</button><button class="no" id="negar" type="button">Negar</button>
+    </div>
+  </div>
+</main>
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+  const PROJECT = 'https://xmdgegnityiodsclpvgf.supabase.co';
+  // Só estes destinos podem receber o código de autorização (Claude Web/Mobile/Desktop e testes locais).
+  const OK_HOSTS = ['claude.ai', 'claude.com', 'localhost', '127.0.0.1'];
+  const $ = (id) => document.getElementById(id);
+  const status = (t, cls) => { $('status').textContent = t; $('status').className = cls || ''; $('status').style.color = cls ? '' : 'var(--muted)'; };
+
+  const authId = new URLSearchParams(location.search).get('authorization_id');
+  if (!authId) { status('Link inválido: falta o identificador da autorização. Volte ao Claude e tente conectar de novo.', 'err'); throw new Error('sem authorization_id'); }
+
+  let sb;
+  try {
+    const cfg = await (await fetch(`${PROJECT}/functions/v1/n7-mcp/public-config`)).json();
+    // sessionStorage: o login vale só nesta aba e some ao fechá-la
+    sb = createClient(cfg.supabase_url, cfg.anon_key, { auth: { storage: window.sessionStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+  } catch { status('Não foi possível carregar a configuração. Tente novamente.', 'err'); throw new Error('config'); }
+
+  async function mostrarConsentimento() {
+    $('login').hidden = true;
+    const { data, error } = await sb.auth.oauth.getAuthorizationDetails(authId);
+    if (error || !data) { status('Esta solicitação expirou ou é inválida. Volte ao Claude e conecte de novo.', 'err'); return; }
+    if (data.redirect_url) { status('Redirecionando…'); location.href = data.redirect_url; return; } // já consentido antes
+    const uri = data.redirect_uri || (data.client && data.client.redirect_uri) || '';
+    let host = ''; try { host = new URL(uri).hostname; } catch { /* inválida */ }
+    $('cliente').textContent = (data.client && (data.client.name || data.client.client_name)) || '(sem nome)';
+    $('destino').textContent = uri;
+    const seguro = OK_HOSTS.some((h) => host === h || host.endsWith('.' + h));
+    if (!seguro) { $('aviso').hidden = false; $('aviso').textContent = 'Destino desconhecido: por segurança só é possível autorizar o Claude (claude.ai / claude.com). Clique em Negar.'; $('aprovar').disabled = true; }
+    status('Conectado. Confirme abaixo.');
+    $('consent').hidden = false;
+  }
+
+  $('aprovar').onclick = async () => {
+    $('aprovar').disabled = true; status('Autorizando…');
+    const { data, error } = await sb.auth.oauth.approveAuthorization(authId);
+    if (error || !data?.redirect_url) { status('Não foi possível autorizar. Tente novamente pelo Claude.', 'err'); return; }
+    location.href = data.redirect_url;
+  };
+  $('negar').onclick = async () => {
+    const { data } = await sb.auth.oauth.denyAuthorization(authId);
+    if (data?.redirect_url) location.href = data.redirect_url; else { $('consent').hidden = true; status('Acesso negado. Você já pode fechar esta janela.'); }
+  };
+  $('login').onsubmit = async (e) => {
+    e.preventDefault(); status('Entrando…');
+    const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('senha').value });
+    $('senha').value = '';
+    if (error) { status('E-mail ou senha incorretos.', 'err'); return; }
+    await mostrarConsentimento();
+  };
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await mostrarConsentimento();
+  else { status('Entre com o e-mail e a senha de acesso do N7 Intelligence.'); $('login').hidden = false; }
+</script>
+</body>
+</html>
